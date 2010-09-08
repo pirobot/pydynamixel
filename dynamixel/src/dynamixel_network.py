@@ -511,7 +511,6 @@ class DynamixelInterface(object):
 
         throws ValueError on arguments out of range
         """
-        print "HELLO!"
         if end_id > 253 or end_id < 0:
             raise ValueError("end_id must be 0 to 233")
         if start_id > end_id or start_id < 0:
