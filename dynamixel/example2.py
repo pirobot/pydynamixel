@@ -1,4 +1,7 @@
-import os, dynamixel, time, random
+import os
+import dynamixel
+import time
+import random
 
 def actuators_moving(actuators):
     for actuator in actuators:
@@ -7,19 +10,19 @@ def actuators_moving(actuators):
     return False
 
 # The number of Dynamixels on our bus.
-nServos = 11
+nServos = 1
 
 # Set your serial port accordingly.
 if os.name == "posix":
     portName = "/dev/ttyUSB0"
 else:
-    portName = "COM11"
+    portName = "COM6"
     
 # Default baud rate of the USB2Dynamixel device.
 baudRate = 1000000
 
-serial = dynamixel.SerialStream( port=portName, baudrate=baudRate, timeout=1)
-net = dynamixel.DynamixelNetwork( serial )
+serial = dynamixel.serial_stream.SerialStream( port=portName, baudrate=baudRate, timeout=1)
+net = dynamixel.dynamixel_network.DynamixelNetwork( serial )
 net.scan( 1, nServos )
 
 myActuators = list()

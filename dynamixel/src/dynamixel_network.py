@@ -336,7 +336,6 @@ class DynamixelInterface(object):
         Some logical registers are one byte long and some are two.
         The count is for the number of bytes, not the number of registers.
         """
-        
         return_packet = None
         retry = True
         # the start address and count from the parameters of the command
@@ -350,7 +349,7 @@ class DynamixelInterface(object):
             except stream.TimeoutException:
                 print "TIMEOUT accessing servo ID: %d" % (ident)
                 self._stream.flush()
-        return return_packet
+            return return_packet
 
     def read_register(self, ident, register):
         """Read the value of one logical register
@@ -385,39 +384,39 @@ class DynamixelInterface(object):
         logical register
         """
         # this function was cleaned up for clarity
-        
-        register_length = DynamixelInterface.register_length(last_register)
-        # calc number of bytes as delta based on addresses
-        byte_count = last_register + register_length - first_register
-       
-        # read data from servo
-        data = self._read_data(ident, first_register, byte_count)
-        if len( data ) != byte_count:
-            raise Exception( "Data received (%d) shorter than requested data (%d)" % (len(data), byte_count))
-        # resulting values
-        result = []
-
-        regs = defs.REGISTER.values()
-        regs.sort()
-        # index of first and last register
-        first = regs.index( first_register )
-        last = regs.index( last_register )
-        
-        # offset to read from
-        offset = 0
-        for i in xrange( first, last + 1 ):
-            reg = regs[ i ]
-            # calc the length; note this skips reserved registers
-            length = DynamixelInterface.register_length( reg )
-            # calc offset
-            offset  = reg - first_register
-            # reconstruct the value
-            if length == 1:
-                result.append(data[ offset ])
-            else:
-                result.append((data[ offset + 1] << 8) + \
-                                   data[offset])
-        return result
+        with self.message_lock:
+            register_length = DynamixelInterface.register_length(last_register)
+            # calc number of bytes as delta based on addresses
+            byte_count = last_register + register_length - first_register
+           
+            # read data from servo
+            data = self._read_data(ident, first_register, byte_count)
+            if len( data ) != byte_count:
+                raise Exception( "Data received (%d) shorter than requested data (%d)" % (len(data), byte_count))
+            # resulting values
+            result = []
+    
+            regs = defs.REGISTER.values()
+            regs.sort()
+            # index of first and last register
+            first = regs.index( first_register )
+            last = regs.index( last_register )
+            
+            # offset to read from
+            offset = 0
+            for i in xrange( first, last + 1 ):
+                reg = regs[ i ]
+                # calc the length; note this skips reserved registers
+                length = DynamixelInterface.register_length( reg )
+                # calc offset
+                offset  = reg - first_register
+                # reconstruct the value
+                if length == 1:
+                    result.append(data[ offset ])
+                else:
+                    result.append((data[ offset + 1] << 8) + \
+                                       data[offset])
+            return result
 
     def write_data(self, ident, start_address, params, deferred):
         """Write register data
