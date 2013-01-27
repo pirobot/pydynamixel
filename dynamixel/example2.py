@@ -1,8 +1,16 @@
+#!/usr/bin/env python
+
+"""
+   example2.py - Same as example1 but move to the next position as soon as all servos
+                 have stopped moving from the previous command
+"""
+
 import os
 import dynamixel
 import time
 import random
 
+# A function to determine if any actuator is moving
 def actuators_moving(actuators):
     for actuator in actuators:
         if actuator.cache[dynamixel.defs.REGISTER['Moving']]:
@@ -21,10 +29,12 @@ else:
 # Default baud rate of the USB2Dynamixel device.
 baudRate = 1000000
 
+# Connect to the serial port
 serial = dynamixel.serial_stream.SerialStream( port=portName, baudrate=baudRate, timeout=1)
 net = dynamixel.dynamixel_network.DynamixelNetwork( serial )
 net.scan( 1, nServos )
 
+# A list to hold the dynamixels
 myActuators = list()
 
 print "Scanning for Dynamixels...",
@@ -33,7 +43,7 @@ for dyn in net.get_dynamixels():
     myActuators.append(net[dyn.id])
 print "...Done"
 
-        
+# Set the default speed and torque        
 for actuator in myActuators:
     actuator.moving_speed = 50
     actuator.synchronized = True
@@ -41,8 +51,9 @@ for actuator in myActuators:
     actuator.torque_limit = 800
     actuator.max_torque = 800
 
-
-
+# Move the servos randomly and print out their current positions
+# Wait for all servos to stop moving before moving to the next set 
+# of positions
 while True:
     for actuator in myActuators:
         actuator.goal_position = random.randrange(450, 600)

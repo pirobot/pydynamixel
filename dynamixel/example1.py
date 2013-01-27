@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+"""
+   example1.py - Move the servos to random positions and print out their current positions
+"""
+
 import os
 import dynamixel
 import time
@@ -15,11 +21,16 @@ else:
 # Default baud rate of the USB2Dynamixel device.
 baudRate = 1000000
 
+# Connect to the serial port
+print "Connecting to serial port", portName, '...',
 serial = dynamixel.serial_stream.SerialStream( port=portName, baudrate=baudRate, timeout=1)
+print "Connected!"
 net = dynamixel.dynamixel_network.DynamixelNetwork( serial )
 net.scan( 1, nServos )
 
+# A list to hold the dynamixels
 myActuators = list()
+print myActuators
 
 print "Scanning for Dynamixels...",
 for dyn in net.get_dynamixels():
@@ -27,7 +38,7 @@ for dyn in net.get_dynamixels():
     myActuators.append(net[dyn.id])
 print "...Done"
 
-        
+# Set the default speed and torque
 for actuator in myActuators:
     actuator.moving_speed = 50
     actuator.synchronized = True
@@ -35,6 +46,7 @@ for actuator in myActuators:
     actuator.torque_limit = 800
     actuator.max_torque = 800
 
+# Move the servos randomly and print out their current positions
 while True:
     for actuator in myActuators:
         actuator.goal_position = random.randrange(450, 600)
@@ -44,6 +56,7 @@ while True:
         time.sleep(0.01)
     for actuator in myActuators:
         print actuator.cache[dynamixel.defs.REGISTER['Id']], actuator.cache[dynamixel.defs.REGISTER['CurrentPosition']]
+
     time.sleep(2)
 
     

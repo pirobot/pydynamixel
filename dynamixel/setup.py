@@ -2,8 +2,10 @@
 
 from distutils.core import setup
 
+# Version 1.01
+
 setup(name = "dynamixel",
-      version = '1.01',
+      version = 'installer',
       author = 'Patrick Goebel',
       author_email = 'patrick@pirobot.org',
       description = "Dynamixel Servo Library",
