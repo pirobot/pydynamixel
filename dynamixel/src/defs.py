@@ -4,8 +4,8 @@
 This is a Python version of the ForestMoon Dynamixel library originally
 written in C# by Scott Ferguson.
 
-The Python version was created for the Pi Robot Project (mailto:patrick@pirobot.org)
-which lives at http://www.pirobot.org.
+The Python version was created by Patrick Goebel (mailto:patrick@pirobot.org)
+for the Pi Robot Project which lives at http://www.pirobot.org.
 
 The original license for the C# version is as follows:
 

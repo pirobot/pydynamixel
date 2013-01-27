@@ -3,8 +3,8 @@
 This is a Python version of the ForestMoon Dynamixel library originally
 written in C# by Scott Ferguson.
 
-The Python version was created for the Pi Robot Project (mailto:patrick@pirobot.org)
-which lives at http://www.pirobot.org.
+The Python version was created by Patrick Goebel (mailto:patrick@pirobot.org)
+for the Pi Robot Project which lives at http://www.pirobot.org.
 
 The original license for the C# version is as follows:
 
@@ -25,7 +25,6 @@ import stream
 import event_handler
 import time
 import dynamixel
-import threading
 
 class DynamixelInterface(object):
     """ Interface to Dynamixel CM-5 """
@@ -46,7 +45,6 @@ class DynamixelInterface(object):
         self._response_total_elapsed = 0
         self._response_max_elapsed = 0
         self._response_count = 0
-        self.message_lock = threading.Lock()
 
     @staticmethod
     def error_text(error_type):
@@ -75,7 +73,8 @@ class DynamixelInterface(object):
     def register_reserved( addr ):
         """ Test to see if a register is reserved """
         return addr in [0xA,0x13]
-   
+
+    
     def enter_toss_mode(self):
         """ Try to put the CM-5 into Toss Mode 
 
@@ -179,75 +178,76 @@ class DynamixelInterface(object):
 
         Returns tuple (packet type identifier, packet)
         """
-        with self.message_lock:
-            # read packet is only ever called immediately following a write 
-            # instruction (sent packet ) so we can use this opportunity to 
-            # time the response from dynamixel 
-            start_time = time.time()
-    
-            # set an invalid id for error return cases
-            ident = 0xFF
-            ## 
-            ## Status packet returned from dynamixel serve
-            ## 0     1     2     3     4     5     5 + data-length
-            ## 0xFF  0xFF  id    len   err   data  checksum
-    
-            # first header byte
+
+        retry = True
+        # read packet is only ever called immediately following a write 
+        # instruction (sent packet ) so we can use this opportunity to 
+        # time the response from dynamixel 
+        start_time = time.time()
+
+        # set an invalid id for error return cases
+        ident = 0xFF
+        ## 
+        ## Status packet returned from dynamixel serve
+        ## 0     1     2     3     4     5     5 + data-length
+        ## 0xFF  0xFF  id    len   err   data  checksum
+
+        # first header byte
+        byte = ord(self._stream.read_byte())
+
+        # update statistics
+        end_time = time.time()
+        elapsed_time = (end_time - start_time)
+        self._response_total_elapsed += elapsed_time
+        self._response_count += 1
+        self._response_max_elapsed = max(self._response_max_elapsed, \
+                                              elapsed_time)
+        
+        if byte != 0xFF:
+            self._error_count_1st_header_byte += 1
+            return (ident, None)
+
+        # 2nd header byte
+        byte = ord(self._stream.read_byte())
+        if byte != 0xFF:
+            self._error_count_2nd_header_byte += 1
+            return (ident, None)
+        
+        # id or third header
+        byte = ord(self._stream.read_byte())
+        if byte == 0xFF:
+            self._error_count_3rd_header_byte += 1
             byte = ord(self._stream.read_byte())
-    
-            # update statistics
-            end_time = time.time()
-            elapsed_time = (end_time - start_time)
-            self._response_total_elapsed += elapsed_time
-            self._response_count += 1
-            self._response_max_elapsed = max(self._response_max_elapsed, \
-                                                  elapsed_time)
-            
-            if byte != 0xFF:
-                self._error_count_1st_header_byte += 1
-                return (ident, None)
-    
-            # 2nd header byte
-            byte = ord(self._stream.read_byte())
-            if byte != 0xFF:
-                self._error_count_2nd_header_byte += 1
-                return (ident, None)
-            
-            # id or third header
-            byte = ord(self._stream.read_byte())
-            if byte == 0xFF:
-                self._error_count_3rd_header_byte += 1
-                byte = ord(self._stream.read_byte())
-    
-            ident = byte
-    
-            # packet length includes data-length + 2
-            length = ord(self._stream.read_byte()) 
-    
-            if length < 0:
-                self._error_count_invalid_length += 1
-    
-            error_status = ord(self._stream.read_byte())
-            data = ""
-            # remove error and checksum bytes
-            length -= 2
-            if length > 0:
-                while length > 0:
-                    buf = self._stream.read(length)
-                    length -= len(buf)
-                    data += buf
-            data = [ord(byte) for byte in data]
-            # XXX below code/comment was in the original code
-            # get the checksum byte
-            # CONSIDER: Could validate the checksum and reject the packet
-            checksum = ord(self._stream.read_byte())
-            # let anyone listing know about any errors reported in the packet
-            # use the InErrorHandler flag to avoid recursion from the 
-            # user's handler
-            if error_status != 0 and not self._in_error_handler:
-                self._in_error_handler = True
-                self.dynamixel_error(self, (ident, error_status))
-                self._in_error_handler = False
+
+        ident = byte
+
+        # packet length includes data-length + 2
+        length = ord(self._stream.read_byte()) 
+
+        if length < 0:
+            self._error_count_invalid_length += 1
+
+        error_status = ord(self._stream.read_byte())
+        data = ""
+        # remove error and checksum bytes
+        length -= 2
+        if length > 0:
+            while length > 0:
+                buf = self._stream.read(length)
+                length -= len(buf)
+                data += buf
+        data = [ord(byte) for byte in data]
+        # XXX below code/comment was in the original code
+        # get the checksum byte
+        # CONSIDER: Could validate the checksum and reject the packet
+        checksum = ord(self._stream.read_byte())
+        # let anyone listing know about any errors reported in the packet
+        # use the InErrorHandler flag to avoid recursion from the 
+        # user's handler
+        if error_status != 0 and not self._in_error_handler:
+            self._in_error_handler = True
+            self.dynamixel_error(self, (ident, error_status))
+            self._in_error_handler = False
         return (ident, data)
 
     def await_packet(self, ident, length):
@@ -280,38 +280,37 @@ class DynamixelInterface(object):
         param - parameters to send (list of bytes) or None
         
         """
-        with self.message_lock:
-            cmd = []
-            #
-            # command packet sent to Dynamixel servo:
-            # 0      1      2    3        4            4 + data-length
-            # [0xFF] [0xFF] [id] [length] [...data...] [checksum]
-            #
-            # header bytes & id        
-            if params == None:
-                params = []
-            if not isinstance(params, list):
-                raise Exception( "Params must be a list")
-            cmd.append(0xFF)
-            cmd.append(0xFF)
-            cmd.append(ident)
-            # length is data-length + 2
-            cmd.append(len(params) + 2)        
-            cmd.append(instruction)
-            # parameter bytes
-            cmd = cmd + params
-            # checksum
-            chksum = 0
-            for byte in cmd[2:]:
-                chksum += byte
-                chksum &= 0xFF
-            chksum = (~chksum) & 0xFF
-            cmd.append(chksum)
-            # convert from bytes to a string
-            cmd = ''.join([chr(c & 0xFF) for c in cmd])
-            # write the string
-            self._stream.write(cmd)
-            self._stream.flush()
+        cmd = []
+        #
+        # command packet sent to Dynamixel servo:
+        # 0      1      2    3        4            4 + data-length
+        # [0xFF] [0xFF] [id] [length] [...data...] [checksum]
+        #
+        # header bytes & id        
+        if params == None:
+            params = []
+        if not isinstance(params, list):
+            raise Exception( "Params must be a list")
+        cmd.append(0xFF)
+        cmd.append(0xFF)
+        cmd.append(ident)
+        # length is data-length + 2
+        cmd.append(len(params) + 2)        
+        cmd.append(instruction)
+        # parameter bytes
+        cmd = cmd + params
+        # checksum
+        chksum = 0
+        for byte in cmd[2:]:
+            chksum += byte
+            chksum &= 0xFF
+        chksum = (~chksum) & 0xFF
+        cmd.append(chksum)
+        # convert from bytes to a string
+        cmd = ''.join([chr(c & 0xFF) for c in cmd])
+        # write the string
+        self._stream.write(cmd)
+        self._stream.flush()
 
     def ping(self, ident):
         """ Check the presence of a specific dynamixel on the network
@@ -336,6 +335,7 @@ class DynamixelInterface(object):
         Some logical registers are one byte long and some are two.
         The count is for the number of bytes, not the number of registers.
         """
+        
         return_packet = None
         retry = True
         # the start address and count from the parameters of the command
@@ -349,7 +349,7 @@ class DynamixelInterface(object):
             except stream.TimeoutException:
                 print "TIMEOUT accessing servo ID: %d" % (ident)
                 self._stream.flush()
-            return return_packet
+        return return_packet
 
     def read_register(self, ident, register):
         """Read the value of one logical register
@@ -384,39 +384,39 @@ class DynamixelInterface(object):
         logical register
         """
         # this function was cleaned up for clarity
-        with self.message_lock:
-            register_length = DynamixelInterface.register_length(last_register)
-            # calc number of bytes as delta based on addresses
-            byte_count = last_register + register_length - first_register
-           
-            # read data from servo
-            data = self._read_data(ident, first_register, byte_count)
-            if len( data ) != byte_count:
-                raise Exception( "Data received (%d) shorter than requested data (%d)" % (len(data), byte_count))
-            # resulting values
-            result = []
-    
-            regs = defs.REGISTER.values()
-            regs.sort()
-            # index of first and last register
-            first = regs.index( first_register )
-            last = regs.index( last_register )
-            
-            # offset to read from
-            offset = 0
-            for i in xrange( first, last + 1 ):
-                reg = regs[ i ]
-                # calc the length; note this skips reserved registers
-                length = DynamixelInterface.register_length( reg )
-                # calc offset
-                offset  = reg - first_register
-                # reconstruct the value
-                if length == 1:
-                    result.append(data[ offset ])
-                else:
-                    result.append((data[ offset + 1] << 8) + \
-                                       data[offset])
-            return result
+        
+        register_length = DynamixelInterface.register_length(last_register)
+        # calc number of bytes as delta based on addresses
+        byte_count = last_register + register_length - first_register
+       
+        # read data from servo
+        data = self._read_data(ident, first_register, byte_count)
+        if len( data ) != byte_count:
+            raise Exception( "Data received (%d) shorter than requested data (%d)" % (len(data), byte_count))
+        # resulting values
+        result = []
+
+        regs = defs.REGISTER.values()
+        regs.sort()
+        # index of first and last register
+        first = regs.index( first_register )
+        last = regs.index( last_register )
+        
+        # offset to read from
+        offset = 0
+        for i in xrange( first, last + 1 ):
+            reg = regs[ i ]
+            # calc the length; note this skips reserved registers
+            length = DynamixelInterface.register_length( reg )
+            # calc offset
+            offset  = reg - first_register
+            # reconstruct the value
+            if length == 1:
+                result.append(data[ offset ])
+            else:
+                result.append((data[ offset + 1] << 8) + \
+                                   data[offset])
+        return result
 
     def write_data(self, ident, start_address, params, deferred):
         """Write register data

@@ -2,8 +2,8 @@
 This is a Python version of the ForestMoon Dynamixel library originally
 written in C# by Scott Ferguson.
 
-The Python version was created for the Pi Robot Project (mailto:patrick@pirobot.org)
-which lives at http://www.pirobot.org.
+The Python version was created by Patrick Goebel (mailto:patrick@pirobot.org)
+for the Pi Robot Project which lives at http://www.pirobot.org.
 
 The original license for the C# version is as follows:
 
@@ -99,8 +99,8 @@ class Enumeration( object ):
         if value != None:
             key = self.key( value )
         # find the key
-        for key in self._descriptions:
-            return self._descriptions[ key ]
+        if key in self._descriptions: 
+            return self._descriptions[ key ] 
         raise KeyError( "Cannot find associated description" )
     def keys( self ):
         """ Return the keys in the enumeration as a list of strings """
