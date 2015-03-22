@@ -6,7 +6,11 @@ This software was written and developed by Scott Ferguson. The current version c
 
 Here are the instructions for installing the library:
 
-Run the command "python setup.py install" on Windows or "sudo python setup.py install" on Linux.
+Here are the instructions for installing the library:
+
+* Unzip the dynamixel-install.zip archive to a location outside of your Python installation.
+* Bring up a command prompt and cd into the dynamixel-installer directory.
+* Run the command "python setup.py install" on Windows or "sudo python setup.py install" on Linux.
 
 You can now use the library by doing an "import dynamixel".
 
